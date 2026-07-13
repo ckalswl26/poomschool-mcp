@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ExplanationLevel {
+  easy
+  standard
+}
+
+enum TaskCategory {
+  document
+  payment
+  preparation
+  application
+  schedule
+  contact
+  health
+  after_school
+  other
+}
+
+enum TaskPriority {
+  low
+  normal
+  high
+}
+
+enum TaskStatus {
+  pending
+  completed
+}
+
+// 학부모의 언어 및 설명 방식 선호. 국적, 출신 국가, 북한이탈주민 여부는 저장하지 않는다.
+model UserProfile {
+  id                     String           @id @default(uuid())
+  oauthSubject           String           @unique
+  preferredLanguageCode  String           @default("ko")
+  preferredLanguageName  String?
+  explanationLevel       ExplanationLevel @default(standard)
+  showEasyKorean         Boolean          @default(true)
+  showOriginalText       Boolean          @default(true)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  @@map("user_profiles")
+}
+
+// 부모의 학교 관련 할 일. 원본 가정통신문 전문은 저장하지 않고 구조화된 정보만 저장한다.
+model SchoolTask {
+  id                String       @id @default(uuid())
+  userId            String
+  childAlias        String?
+  title             String
+  description       String?
+  category          TaskCategory @default(other)
+  priority          TaskPriority @default(normal)
+  dueAt             DateTime?
+  status            TaskStatus   @default(pending)
+  requiresSignature Boolean      @default(false)
+  requiresPayment   Boolean      @default(false)
+  sourceSummary     String?
+  idempotencyKey    String
+  completedAt       DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@unique([userId, idempotencyKey], name: "userId_idempotencyKey")
+  @@index([userId, status, dueAt])
+  @@map("school_tasks")
+}
+
+// 안내문 분석 결과의 단기 캐시. 원문 텍스트는 저장하지 않고 해시만 저장한다.
+model AnalysisCache {
+  id               String   @id @default(uuid())
+  userId           String
+  contentHash      String
+  targetLanguage   String
+  explanationLevel String
+  resultJson       String
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+
+  @@unique([userId, contentHash, targetLanguage, explanationLevel], name: "cache_lookup_key")
+  @@index([expiresAt])
+  @@map("analysis_cache")
+}

@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: poomschool
+      POSTGRES_PASSWORD: poomschool
+      POSTGRES_DB: poomschool
+    ports:
+      - '5432:5432'
+    volumes:
+      - poomschool_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U poomschool']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      HOST: '0.0.0.0'
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://<PUBLIC_DOMAIN>}
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      AI_TIMEOUT_MS: '2500'
+      DATABASE_URL: postgresql://poomschool:poomschool@postgres:5432/poomschool?schema=public
+      ANALYSIS_CACHE_ENABLED: 'true'
+      ANALYSIS_CACHE_TTL_SECONDS: '900'
+      OAUTH_ISSUER: ${OAUTH_ISSUER:-https://<OAUTH_ISSUER_DOMAIN>}
+      OAUTH_AUDIENCE: ${OAUTH_AUDIENCE:-https://<PUBLIC_DOMAIN>/mcp}
+      OAUTH_JWKS_URL: ${OAUTH_JWKS_URL:-https://<OAUTH_ISSUER_DOMAIN>/.well-known/jwks.json}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://playmcp.kakao.com}
+      ALLOW_MISSING_ORIGIN: ${ALLOW_MISSING_ORIGIN:-false}
+      RATE_LIMIT_WINDOW_MS: '60000'
+      RATE_LIMIT_MAX_REQUESTS: '60'
+      AUTH_DISABLED: ${AUTH_DISABLED:-false}
+      DEV_USER_SUB: local-test-user
+      LOG_LEVEL: info
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  poomschool_postgres_data:
