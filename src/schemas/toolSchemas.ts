@@ -14,28 +14,28 @@ import { bcp47LanguageSchema, explanationLevelSchema, explanationModeSchema, sou
 export const analyzeNoticeInputShape = {
   notice_text: noticeTextSchema,
   child_grade: childGradeSchema,
-  parent_language: bcp47LanguageSchema.optional(),
-  source_language: sourceLanguageSchema,
-  explanation_level: explanationLevelSchema.optional(),
-  explanation_mode: explanationModeSchema,
+  parent_language: bcp47LanguageSchema().optional(),
+  source_language: sourceLanguageSchema(),
+  explanation_level: explanationLevelSchema().optional(),
+  explanation_mode: explanationModeSchema(),
   include_translation: z.boolean().default(true),
 };
 
 export const translateNoticeInputShape = {
   notice_text: noticeTextSchema,
-  source_language: sourceLanguageSchema,
-  target_language: bcp47LanguageSchema,
+  source_language: sourceLanguageSchema(),
+  target_language: bcp47LanguageSchema(),
   include_original: z.boolean().default(true),
   include_easy_korean: z.boolean().default(true),
-  explanation_mode: explanationModeSchema,
+  explanation_mode: explanationModeSchema(),
 };
 
 export const explainTermInputShape = {
   term: termSchema,
   context: contextTextSchema,
-  parent_language: bcp47LanguageSchema.optional(),
-  explanation_level: explanationLevelSchema.default('standard'),
-  explanation_mode: explanationModeSchema,
+  parent_language: bcp47LanguageSchema().optional(),
+  explanation_level: explanationLevelSchema().default('standard'),
+  explanation_mode: explanationModeSchema(),
 };
 
 export const situationSchema = z.enum([
@@ -56,8 +56,8 @@ export const situationSchema = z.enum([
 
 export const draftTeacherMessageInputShape = {
   parent_input_text: parentInputTextSchema,
-  input_language: sourceLanguageSchema,
-  parent_language: bcp47LanguageSchema.optional(),
+  input_language: sourceLanguageSchema(),
+  parent_language: bcp47LanguageSchema().optional(),
   situation: situationSchema,
   child_alias: childAliasSchema,
   tone: z.enum(['polite', 'concise', 'warm']).default('polite'),
@@ -65,9 +65,9 @@ export const draftTeacherMessageInputShape = {
 };
 
 export const setParentPreferencesInputShape = {
-  preferred_language_code: bcp47LanguageSchema,
+  preferred_language_code: bcp47LanguageSchema(),
   preferred_language_name: z.string().trim().max(100).optional(),
-  explanation_level: explanationLevelSchema,
+  explanation_level: explanationLevelSchema(),
   show_easy_korean: z.boolean(),
   show_original_text: z.boolean(),
 };

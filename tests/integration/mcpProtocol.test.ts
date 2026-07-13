@@ -79,6 +79,23 @@ describe('MCP 프로토콜 준수 (Streamable HTTP)', () => {
     expect(serverInfo.name).toBe('poomschool');
   });
 
+  it('모든 Tool의 inputSchema는 $ref를 포함하지 않는다 (스키마 객체 재사용으로 인한 $ref 치환 방지)', async () => {
+    const { tools } = await client.listTools();
+    function findRefPaths(node: unknown, path: string): string[] {
+      if (node === null || typeof node !== 'object') return [];
+      const found: string[] = [];
+      for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+        if (key === '$ref') found.push(path);
+        found.push(...findRefPaths(value, `${path}.${key}`));
+      }
+      return found;
+    }
+    for (const tool of tools as Array<{ name: string; inputSchema: unknown }>) {
+      const refs = findRefPaths(tool.inputSchema, tool.name);
+      expect(refs, `${tool.name} inputSchema에 $ref가 있으면 안 됨: ${refs.join(', ')}`).toEqual([]);
+    }
+  });
+
   it('tools/call 성공 시 한국어 Markdown 결과를 반환한다', async () => {
     const { status, result } = await client.callTool('explain_term', { term: '스쿨뱅킹' });
     expect(status).toBe(200);

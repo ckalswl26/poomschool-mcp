@@ -13,28 +13,32 @@ import { NOTICE_TEXT_MAX_LENGTH, PARENT_INPUT_MAX_LENGTH } from '../../src/confi
 describe('bcp47LanguageSchema', () => {
   it('유효한 BCP-47 코드를 허용한다', () => {
     for (const code of ['ko', 'vi', 'zh-CN', 'zh-TW', 'en', 'ru', 'th', 'tl', 'mn', 'km', 'uz', 'ne', 'si']) {
-      expect(bcp47LanguageSchema.safeParse(code).success).toBe(true);
+      expect(bcp47LanguageSchema().safeParse(code).success).toBe(true);
     }
   });
 
   it('잘못된 형식은 거부한다', () => {
     for (const code of ['', '1', 'toolongtoolongtoolongtoolongtoolongtoolong', 'ko_KR!']) {
-      expect(bcp47LanguageSchema.safeParse(code).success).toBe(false);
+      expect(bcp47LanguageSchema().safeParse(code).success).toBe(false);
     }
+  });
+
+  it('호출할 때마다 독립적인 스키마 인스턴스를 반환한다 (JSON Schema $ref 중복참조 방지)', () => {
+    expect(bcp47LanguageSchema()).not.toBe(bcp47LanguageSchema());
   });
 });
 
 describe('sourceLanguageSchema (auto 처리)', () => {
   it('auto를 허용한다', () => {
-    expect(sourceLanguageSchema.parse('auto')).toBe('auto');
+    expect(sourceLanguageSchema().parse('auto')).toBe('auto');
   });
 
   it('값이 없으면 기본값 auto를 사용한다', () => {
-    expect(sourceLanguageSchema.parse(undefined)).toBe('auto');
+    expect(sourceLanguageSchema().parse(undefined)).toBe('auto');
   });
 
   it('BCP-47 코드도 허용한다', () => {
-    expect(sourceLanguageSchema.parse('vi')).toBe('vi');
+    expect(sourceLanguageSchema().parse('vi')).toBe('vi');
   });
 });
 
