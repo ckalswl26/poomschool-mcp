@@ -1,3 +1,4 @@
+import { ApiError, GoogleGenAI } from '@google/genai';
 import type { z } from 'zod';
 import type {
   AiProvider,
@@ -21,52 +22,30 @@ import type { AppLogger } from '../../config/logger.js';
 import { MAX_OUTPUT_TOKENS, SYSTEM_PRINCIPLES } from './aiPromptConstants.js';
 import { parseWithOneRetry } from './jsonRetryValidation.js';
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_API_VERSION = '2023-06-01';
-
-export interface AnthropicProviderOptions {
+export interface GeminiProviderOptions {
   apiKey: string;
   model: string;
   timeoutMs: number;
   logger: AppLogger;
 }
 
-async function callAnthropicRaw(
-  options: AnthropicProviderOptions,
-  userPrompt: string,
-): Promise<string> {
+async function callGeminiRaw(options: GeminiProviderOptions, userPrompt: string): Promise<string> {
+  const client = new GoogleGenAI({ apiKey: options.apiKey });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs);
   try {
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': options.apiKey,
-        'anthropic-version': ANTHROPIC_API_VERSION,
-      },
-      body: JSON.stringify({
-        model: options.model,
-        max_tokens: MAX_OUTPUT_TOKENS,
+    const response = await client.models.generateContent({
+      model: options.model,
+      contents: userPrompt,
+      config: {
+        systemInstruction: SYSTEM_PRINCIPLES,
         temperature: 0,
-        system: SYSTEM_PRINCIPLES,
-        messages: [{ role: 'user', content: userPrompt }],
-      }),
-      signal: controller.signal,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+        abortSignal: controller.signal,
+      },
     });
 
-    if (!response.ok) {
-      options.logger.error({ status: response.status }, 'anthropic_http_error');
-      throw new AppError(
-        'AI_UNAVAILABLE',
-        'AI 서비스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.',
-      );
-    }
-
-    const body = (await response.json()) as {
-      content?: Array<{ type: string; text?: string }>;
-    };
-    const text = body.content?.find((block) => block.type === 'text')?.text;
+    const text = response.text;
     if (!text) {
       throw new AppError(
         'AI_VALIDATION_FAILED',
@@ -76,13 +55,27 @@ async function callAnthropicRaw(
     return text;
   } catch (error) {
     if (error instanceof AppError) throw error;
+    if (error instanceof ApiError && error.status === 429) {
+      options.logger.error({ status: error.status }, 'gemini_rate_limited');
+      throw new AppError(
+        'RATE_LIMITED',
+        'AI 서비스 요청이 너무 많아 일시적으로 제한되었습니다. 잠시 후 다시 시도해 주세요.',
+      );
+    }
+    if (error instanceof ApiError) {
+      options.logger.error({ status: error.status }, 'gemini_http_error');
+      throw new AppError(
+        'AI_UNAVAILABLE',
+        'AI 서비스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+      );
+    }
     if (error instanceof Error && error.name === 'AbortError') {
       throw new AppError(
         'AI_TIMEOUT',
         '학교 안내를 분석하는 데 시간이 오래 걸리고 있습니다. 안내문을 조금 줄여 다시 시도해 주세요.',
       );
     }
-    options.logger.error({ err: error instanceof Error ? error.message : String(error) }, 'anthropic_call_failed');
+    options.logger.error({ err: error instanceof Error ? error.message : String(error) }, 'gemini_call_failed');
     throw new AppError(
       'AI_UNAVAILABLE',
       'AI 서비스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.',
@@ -93,18 +86,18 @@ async function callAnthropicRaw(
 }
 
 async function callAndValidate<T>(
-  options: AnthropicProviderOptions,
+  options: GeminiProviderOptions,
   userPrompt: string,
   schema: z.ZodType<T>,
 ): Promise<T> {
-  const firstText = await callAnthropicRaw(options, userPrompt);
+  const firstText = await callGeminiRaw(options, userPrompt);
   return parseWithOneRetry(firstText, schema, options.logger, (repairPrompt) =>
-    callAnthropicRaw(options, repairPrompt),
+    callGeminiRaw(options, repairPrompt),
   );
 }
 
-export class AnthropicAiProvider implements AiProvider {
-  constructor(private readonly options: AnthropicProviderOptions) {}
+export class GeminiAiProvider implements AiProvider {
+  constructor(private readonly options: GeminiProviderOptions) {}
 
   async analyzeNotice(input: AnalyzeNoticeInput): Promise<NoticeAnalysisResult> {
     const prompt = `다음 한국 초등학교 가정통신문을 분석해 지정된 JSON 스키마로만 응답하세요.

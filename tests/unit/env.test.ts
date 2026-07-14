@@ -47,4 +47,32 @@ describe('loadEnv', () => {
     ).toThrow();
     resetEnvCacheForTests();
   });
+
+  it('AI_PROVIDER=gemini인데 GEMINI_API_KEY가 없으면 검증에 실패한다', () => {
+    resetEnvCacheForTests();
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'development',
+        AUTH_DISABLED: 'true',
+        DATABASE_URL: 'postgresql://localhost/db',
+        PUBLIC_BASE_URL: 'https://example.com',
+        AI_PROVIDER: 'gemini',
+      }),
+    ).toThrow(/GEMINI_API_KEY/);
+    resetEnvCacheForTests();
+  });
+
+  it('AI_PROVIDER=gemini이고 GEMINI_API_KEY가 있으면 GEMINI_MODEL 기본값이 gemini-2.5-flash이다', () => {
+    resetEnvCacheForTests();
+    const env = loadEnv({
+      NODE_ENV: 'development',
+      AUTH_DISABLED: 'true',
+      DATABASE_URL: 'postgresql://localhost/db',
+      PUBLIC_BASE_URL: 'https://example.com',
+      AI_PROVIDER: 'gemini',
+      GEMINI_API_KEY: 'test-gemini-key',
+    });
+    expect(env.GEMINI_MODEL).toBe('gemini-2.5-flash');
+    resetEnvCacheForTests();
+  });
 });

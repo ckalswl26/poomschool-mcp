@@ -9,9 +9,11 @@ const envSchema = z
     HOST: z.string().default('0.0.0.0'),
     PUBLIC_BASE_URL: z.string().url().default('http://localhost:3000'),
 
-    AI_PROVIDER: z.enum(['anthropic', 'mock']).default('mock'),
+    AI_PROVIDER: z.enum(['anthropic', 'gemini', 'mock']).default('mock'),
     ANTHROPIC_API_KEY: z.string().optional().default(''),
     ANTHROPIC_MODEL: z.string().optional().default(''),
+    GEMINI_API_KEY: z.string().optional().default(''),
+    GEMINI_MODEL: z.string().optional().default('gemini-2.5-flash'),
     AI_TIMEOUT_MS: z.coerce.number().int().positive().default(2500),
 
     DATABASE_URL: z.string().min(1, 'DATABASE_URL은 필수입니다.'),
@@ -68,6 +70,13 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         message: 'AI_PROVIDER=anthropic 인 경우 ANTHROPIC_API_KEY가 필요합니다.',
         path: ['ANTHROPIC_API_KEY'],
+      });
+    }
+    if (data.AI_PROVIDER === 'gemini' && !data.GEMINI_API_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'AI_PROVIDER=gemini 인 경우 GEMINI_API_KEY가 필요합니다.',
+        path: ['GEMINI_API_KEY'],
       });
     }
   });

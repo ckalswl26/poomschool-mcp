@@ -5,6 +5,7 @@ import { PrismaUserProfileRepository } from './database/repositories/userProfile
 import { PrismaSchoolTaskRepository } from './database/repositories/schoolTaskRepository.js';
 import { PrismaAnalysisCacheRepository } from './database/repositories/analysisCacheRepository.js';
 import { AnthropicAiProvider } from './services/ai/AnthropicAiProvider.js';
+import { GeminiAiProvider } from './services/ai/GeminiAiProvider.js';
 import { MockAiProvider } from './services/ai/MockAiProvider.js';
 import type { AiProvider } from './services/ai/AiProvider.js';
 import { buildExpressApp } from './server/streamableHttp.js';
@@ -15,6 +16,14 @@ function buildAiProvider(env: ReturnType<typeof loadEnv>, logger: ReturnType<typ
     return new AnthropicAiProvider({
       apiKey: env.ANTHROPIC_API_KEY,
       model: env.ANTHROPIC_MODEL,
+      timeoutMs: env.AI_TIMEOUT_MS,
+      logger,
+    });
+  }
+  if (env.AI_PROVIDER === 'gemini') {
+    return new GeminiAiProvider({
+      apiKey: env.GEMINI_API_KEY,
+      model: env.GEMINI_MODEL,
       timeoutMs: env.AI_TIMEOUT_MS,
       logger,
     });
